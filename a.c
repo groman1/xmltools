@@ -1,0 +1,6 @@
+#include <xmltools.h>
+
+int main()
+{
+	return 0;
+}
