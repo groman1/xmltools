@@ -33,6 +33,45 @@ void fillDefault(xmlValue *val)
 	val->args->attr = malloc(1);
 	val->args->value = malloc(1);
 }
+
+void freeXML(xml *xmlDocument)
+{
+	int currTag = 0;
+	xml *currPtr = xmlDocument;
+	while(currTag<xmlDocument->tagQty&&currPtr==xmlDocument)
+	{
+		if (currPtr->dataArr[currTag].value.xmlVal!=NULL)
+		{
+			currPtr = currPtr->dataArr[currTag].value.xmlVal;
+		}
+		else
+		{
+			free(currPtr->dataArr[currTag].tagName);
+			currPtr->dataArr[currTag].tagName = NULL;
+			for (int i = 0; i<currPtr->dataArr[currTag].argsQty; ++i)
+			{
+				free(currPtr->dataArr[currTag].args[i].attr);
+				free(currPtr->dataArr[currTag].args[i].value);
+			}
+			currPtr->dataArr[currTag].args->attr = NULL;
+			currPtr->dataArr[currTag].args->value = NULL;
+			free(currPtr->dataArr[currTag].args);
+			currPtr->dataArr[currTag].args = NULL;
+			free(currPtr->dataArr[currTag].value.str);
+			currPtr->dataArr[currTag].value.str = NULL;
+			if (&currPtr->dataArr[currTag+1]!=NULL)
+			{
+				++currTag;
+			}
+			else
+			{
+				free(currPtr->dataArr);
+				currPtr = currPtr->parent;
+			}
+		}
+	}
+}
+
 xml *parseXML(char *string)
 {
     xml *xmlDocument = malloc(sizeof(xml));
@@ -50,7 +89,7 @@ xml *parseXML(char *string)
 			else if (string[len] == '"') ++quoteQty;
 			else if (string[len] == '=') ++eqQty; //check if all args have 2 quotes
 		}
-		if (opened||!len||(quoteQty!=eqQty<<1)) return NULL;
+		if (opened||!len||(quoteQty!=eqQty<<1)) return (void*)2;
 	}
 	int readElem = 1, readArgs = 0, readValue = 0;
 	for (int i = 0; i<len; ++i)
@@ -59,37 +98,42 @@ xml *parseXML(char *string)
         {
             if (readValue&&string[i+1]=='/') 
 			{
-				i+=2;
-				readValue = 0; readElem = 1; 
 				currPtr->dataArr[currPtr->tagQty-1].value.str[size] = '\0';
-				size = 0;
-				for (int x = 0; string[i]!='>'; ++x, ++i)
-				{
-					if (string[i]!=currPtr->dataArr[currPtr->tagQty-1].tagName[x]) return NULL;	// check if opening and closing tags are matching
-				}
-				if (nested<0)
+				if (--nested<0)
 				{
 					currPtr = currPtr->parent;
 					++nested;
 				}
-				else
+				i+=2;
+				size = 0;
+				readValue = 0;
+				for (int x = 0; string[i]!='>'; ++x, ++i)
 				{
-					++(currPtr->tagQty); 
-					currPtr->dataArr = realloc(currPtr->dataArr, currPtr->tagQty*sizeof(xmlValue));
-					fillDefault(&currPtr->dataArr[currPtr->tagQty-1]);
+					if (string[i]!=currPtr->dataArr[currPtr->tagQty-1].tagName[x]) 
+					{
+						return (void*)1;	// check if opening and closing tags are matching
+					}
 				}
+			}
+			else if (!readValue&&string[i+1]!='/'&&currPtr->dataArr[0].tagName[0]!='\0')
+			{
+				++(currPtr->tagQty);
+				currPtr->dataArr = realloc(currPtr->dataArr, currPtr->tagQty*sizeof(xmlValue));
+				fillDefault(&currPtr->dataArr[currPtr->tagQty-1]);	
+				readElem = 1; //group elements with equal indentation
 			}
 			else if (readValue&&string[i+1]!='/') 
 			{ 
 				readValue = 0, readElem = 1, nested = 1; 
 				currPtr->dataArr[currPtr->tagQty-1].value.xmlVal = malloc(sizeof(xml)); 
-				currPtr->dataArr[currPtr->tagQty-1].value.xmlVal->parent = &currPtr[currPtr->tagQty-1]; 
+				currPtr->dataArr[currPtr->tagQty-1].value.xmlVal->parent = currPtr; 
 				currPtr = currPtr->dataArr[currPtr->tagQty-1].value.xmlVal; 
 				currPtr->dataArr = malloc(sizeof(xmlValue));
 				currPtr->tagQty = 1;
 				fillDefault(&currPtr->dataArr[0]); // nesting tags
 			}
         }
+		else if (string[i]=='\n'||string[i]=='\t'); //ignore all newlines and \t
         else
         {
             if (readElem)

@@ -22,9 +22,10 @@ struct xmlValueStruct {
 struct xmlStruct {
 	xml *parent;
 	int tagQty;
-	xmlValue *arr;
+	xmlValue *dataArr;
 };
 
 xml *parseXML(char *string);
+void freeXML(xml *xmlDocument);
 
 #endif
