@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 
 typedef struct {
@@ -10,7 +9,7 @@ typedef struct xmlStruct xml;
 typedef struct xmlValueStruct xmlValue;
 
 struct xmlValueStruct {
-    char *name;
+    char *tagName;
     struct {
 		char *str;
 		xml *xmlVal;
@@ -22,13 +21,13 @@ struct xmlValueStruct {
 struct xmlStruct {
 	xml *parent;
 	int tagQty;
-	xmlValue *arr;
+	xmlValue *dataArr;
 };
 
 void fillDefault(xmlValue *val)
 {
 	val->value.str = malloc(1);
-	val->name = malloc(1);
+	val->tagName = malloc(1);
 	val->argsQty = 1;
 	val->args = malloc(sizeof(xmlArgs));
 	val->args->attr = malloc(1);
@@ -38,41 +37,57 @@ xml *parseXML(char *string)
 {
     xml *xmlDocument = malloc(sizeof(xml));
 	xmlDocument->tagQty = 1;
-	xmlDocument->arr = malloc(sizeof(xmlValue));
+	xmlDocument->dataArr = malloc(sizeof(xmlValue));
 	xml *currPtr = xmlDocument;
-	fillDefault(xmlDocument->arr);
-    int opened = 0, pars = 0, len, readElem = 1, readArgs = 0, readValue = 0;
-	int size = 0;
-    for (len = 0; string[len]!='\0'; ++len)
-    {
-        if (string[len] == '<') ++opened;
-        else if (string[len] == '>') --opened;
-		else if (string[len] == '"') pars = !pars;
-    }
-    if (opened||!len||pars) return NULL;
+	int len, size = 0, nested = 0;
+	fillDefault(xmlDocument->dataArr);
+	{
+		int opened = 0, quoteQty = 0, eqQty = 0;
+		for (len = 0; string[len]!='\0'; ++len)
+		{
+			if (string[len] == '<') ++opened;
+			else if (string[len] == '>') --opened;
+			else if (string[len] == '"') ++quoteQty;
+			else if (string[len] == '=') ++eqQty; //check if all args have 2 quotes
+		}
+		if (opened||!len||(quoteQty!=eqQty<<1)) return NULL;
+	}
+	int readElem = 1, readArgs = 0, readValue = 0;
 	for (int i = 0; i<len; ++i)
     {
 		if (string[i] == '<')
         {
             if (readValue&&string[i+1]=='/') 
-			{ 
+			{
+				i+=2;
 				readValue = 0; readElem = 1; 
-				currPtr->arr[currPtr->tagQty-1].value.str[size] = '\0';
-				++(currPtr->tagQty); 
-				currPtr->arr = realloc(currPtr->arr, currPtr->tagQty*sizeof(xmlValue));
+				currPtr->dataArr[currPtr->tagQty-1].value.str[size] = '\0';
 				size = 0;
-				fillDefault(&currPtr->arr[currPtr->tagQty-1]);
-				while(string[++i]!='>');  // TODO: IMPLEMENT TAG CHECK HERE
+				for (int x = 0; string[i]!='>'; ++x, ++i)
+				{
+					if (string[i]!=currPtr->dataArr[currPtr->tagQty-1].tagName[x]) return NULL;	// check if opening and closing tags are matching
+				}
+				if (nested<0)
+				{
+					currPtr = currPtr->parent;
+					++nested;
+				}
+				else
+				{
+					++(currPtr->tagQty); 
+					currPtr->dataArr = realloc(currPtr->dataArr, currPtr->tagQty*sizeof(xmlValue));
+					fillDefault(&currPtr->dataArr[currPtr->tagQty-1]);
+				}
 			}
 			else if (readValue&&string[i+1]!='/') 
 			{ 
-				readValue = 0; readElem = 1; 
-				currPtr->arr[currPtr->tagQty-1].value.xmlVal = malloc(sizeof(xml)); 
-				currPtr->arr[currPtr->tagQty-1].value.xmlVal->parent = &currPtr[currPtr->tagQty-1]; 
-				currPtr = currPtr->arr[currPtr->tagQty-1].value.xmlVal; 
-				currPtr->arr = malloc(sizeof(struct xmlStruct));
+				readValue = 0, readElem = 1, nested = 1; 
+				currPtr->dataArr[currPtr->tagQty-1].value.xmlVal = malloc(sizeof(xml)); 
+				currPtr->dataArr[currPtr->tagQty-1].value.xmlVal->parent = &currPtr[currPtr->tagQty-1]; 
+				currPtr = currPtr->dataArr[currPtr->tagQty-1].value.xmlVal; 
+				currPtr->dataArr = malloc(sizeof(xmlValue));
 				currPtr->tagQty = 1;
-				fillDefault(currPtr->arr); // nesting tags
+				fillDefault(&currPtr->dataArr[0]); // nesting tags
 			}
         }
         else
@@ -82,18 +97,18 @@ xml *parseXML(char *string)
 				if (string[i]=='>') 
 				{ 
 					readElem = 0; readValue = 1;
-					currPtr->arr[currPtr->tagQty-1].name[size] = '\0';
+					currPtr->dataArr[currPtr->tagQty-1].tagName[size] = '\0';
 					size = 0;
 				}
 				else if (string[i]!=' ')
 				{
-					currPtr->arr[currPtr->tagQty-1].name[size++] = string[i];
-					currPtr->arr[currPtr->tagQty-1].name = realloc(currPtr->arr[currPtr->tagQty-1].name, size);
+					currPtr->dataArr[currPtr->tagQty-1].tagName[size++] = string[i];
+					currPtr->dataArr[currPtr->tagQty-1].tagName = realloc(currPtr->dataArr[currPtr->tagQty-1].tagName, size+1);
 				}
 				else 
 				{
 					readElem = 0; readArgs = 1;
-					currPtr->arr[currPtr->tagQty-1].name[size] = '\0';
+					currPtr->dataArr[currPtr->tagQty-1].tagName[size] = '\0';
 					size = 0;
 				}
             }
@@ -104,37 +119,44 @@ xml *parseXML(char *string)
                 {
 					if (string[i]=='>')
 					{
-						currPtr->arr[currPtr->tagQty-1].args[currPtr->arr[currPtr->tagQty-1].argsQty].value[size] = '\0';
+						currPtr->dataArr[currPtr->tagQty-1].args[currPtr->dataArr[currPtr->tagQty-1].argsQty-1].value[size] = '\0';
 						size = 0;
+						break;
 					}
                     if (readArgValue)
                     {
-                        if (string[i]!=' '&&!insideQuote) 
+                        if (string[i]==' '&&!insideQuote) 
 						{ 
-                            ++(currPtr->arr[currPtr->tagQty-1].argsQty);
-							currPtr->arr[currPtr->tagQty-1].args[currPtr->arr[currPtr->tagQty-1].argsQty].value[size++] = string[i];
-							currPtr->arr[currPtr->tagQty-1].args[currPtr->arr[currPtr->tagQty-1].argsQty].value = realloc(currPtr->arr[currPtr->tagQty-1].args[currPtr->arr[currPtr->tagQty-1].argsQty].value, size);
+							currPtr->dataArr[currPtr->tagQty-1].args[currPtr->dataArr[currPtr->tagQty-1].argsQty-1].value[size] = '\0';
+                            ++(currPtr->dataArr[currPtr->tagQty-1].argsQty);
+							currPtr->dataArr[currPtr->tagQty-1].args = realloc(currPtr->dataArr[currPtr->tagQty-1].args, currPtr->dataArr[currPtr->tagQty-1].argsQty*sizeof(xmlArgs));
+							currPtr->dataArr[currPtr->tagQty-1].args[currPtr->dataArr[currPtr->tagQty-1].argsQty-1].attr = malloc(1);
+							currPtr->dataArr[currPtr->tagQty-1].args[currPtr->dataArr[currPtr->tagQty-1].argsQty-1].value = malloc(1);
+							size = 0;
 							readArgValue = 0; 
                         }
                         else
                         {
-							if (string[i]=='"'||string[i]=='\'') insideQuote = !insideQuote;
-                            currPtr->arr[currPtr->tagQty-1].args[currPtr->arr[currPtr->tagQty-1].argsQty].attr[size++] = string[i];
-							currPtr->arr[currPtr->tagQty-1].args[currPtr->arr[currPtr->tagQty-1].argsQty].attr = realloc(currPtr->arr[currPtr->tagQty-1].args[currPtr->arr[currPtr->tagQty-1].argsQty].attr, size);
+							if (string[i]=='"') insideQuote = !insideQuote;
+							else
+							{
+								currPtr->dataArr[currPtr->tagQty-1].args[currPtr->dataArr[currPtr->tagQty-1].argsQty-1].value[size++] = string[i];
+								currPtr->dataArr[currPtr->tagQty-1].args[currPtr->dataArr[currPtr->tagQty-1].argsQty-1].value = realloc(currPtr->dataArr[currPtr->tagQty-1].args[currPtr->dataArr[currPtr->tagQty-1].argsQty-1].value, size+1);
+							}
                         }
                     }
                     else
                     {
                         if (string[i]=='='||string[i]==' ') 
 						{
-							currPtr->arr[currPtr->tagQty-1].args[currPtr->arr[currPtr->tagQty-1].argsQty].attr[size] = '\0';
+							currPtr->dataArr[currPtr->tagQty-1].args[currPtr->dataArr[currPtr->tagQty-1].argsQty-1].attr[size] = '\0';
 							readArgValue = 1;
 							size = 0;
 						}
 						else
 						{
-							currPtr->arr[currPtr->tagQty-1].args[currPtr->arr[currPtr->tagQty-1].argsQty].attr[size++] = string[i];
-							currPtr->arr[currPtr->tagQty-1].args[currPtr->arr[currPtr->tagQty-1].argsQty].attr = realloc(currPtr->arr[currPtr->tagQty-1].args[currPtr->arr[currPtr->tagQty-1].argsQty].attr, size);
+							currPtr->dataArr[currPtr->tagQty-1].args[currPtr->dataArr[currPtr->tagQty-1].argsQty-1].attr[size++] = string[i];
+							currPtr->dataArr[currPtr->tagQty-1].args[currPtr->dataArr[currPtr->tagQty-1].argsQty-1].attr = realloc(currPtr->dataArr[currPtr->tagQty-1].args[currPtr->dataArr[currPtr->tagQty-1].argsQty-1].attr, size+1);
 						}
                     }        
                     ++i;
@@ -145,8 +167,8 @@ xml *parseXML(char *string)
             }
             else if (readValue)
             {
-                currPtr->arr[currPtr->tagQty-1].value.str[size++] = string[i];
-				currPtr->arr[currPtr->tagQty-1].value.str = realloc(currPtr->arr[currPtr->tagQty-1].value.str, size);
+                currPtr->dataArr[currPtr->tagQty-1].value.str[size++] = string[i];
+				currPtr->dataArr[currPtr->tagQty-1].value.str = realloc(currPtr->dataArr[currPtr->tagQty-1].value.str, size+1);
             }
         }
     }

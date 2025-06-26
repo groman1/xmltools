@@ -10,7 +10,7 @@ typedef struct xmlStruct xml;
 typedef struct xmlValueStruct xmlValue;
 
 struct xmlValueStruct {
-	char *name;
+	char *tagName;
 	struct {
 		char *str;
 		xml *xmlVal;
@@ -25,6 +25,6 @@ struct xmlStruct {
 	xmlValue *arr;
 };
 
-xmlValue *parseXML(char *string);
+xml *parseXML(char *string);
 
 #endif
