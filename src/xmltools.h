@@ -25,6 +25,8 @@ struct xmlStruct {
 	xmlValue *dataArr;
 };
 
+char *xmlToString(xml *ptr);
+void fillEmptyXML(xml *ptr);
 xml *parseXML(char *string);
 void freeXML(xml *xmlDocument);
 
