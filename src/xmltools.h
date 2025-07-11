@@ -1,6 +1,8 @@
 #ifndef XMLTOOLS_H_
 #define XMLTOOLS_H_
 
+#define bool unsigned char
+
 typedef struct {
 	char *attr;
 	char *value;
@@ -8,6 +10,7 @@ typedef struct {
 
 typedef struct xmlStruct xml;
 typedef struct xmlValueStruct xmlValue;
+
 
 struct xmlValueStruct {
 	char *tagName;
@@ -17,6 +20,7 @@ struct xmlValueStruct {
 	} value;
 	xmlArgs *args;
 	int argsQty;
+	bool isNested;
 };
 
 struct xmlStruct {
@@ -25,6 +29,8 @@ struct xmlStruct {
 	xmlValue *dataArr;
 };
 
+char *xmlToString(xml *ptr);
+void fillEmptyXML(xml *ptr);
 xml *parseXML(char *string);
 void freeXML(xml *xmlDocument);
 

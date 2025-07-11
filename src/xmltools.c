@@ -1,5 +1,7 @@
 #include <stdlib.h>
 
+#define bool unsigned char
+
 typedef struct {
     char *attr;
     char *value;
@@ -10,12 +12,13 @@ typedef struct xmlValueStruct xmlValue;
 
 struct xmlValueStruct {
     char *tagName;
-    struct {
+    union {
 		char *str;
 		xml *xmlVal;
 	} value;
     xmlArgs *args;
     int argsQty;
+	bool isNesting;
 };
 
 struct xmlStruct {
@@ -28,58 +31,233 @@ void fillDefault(xmlValue *val)
 {
 	val->value.str = malloc(1);
 	val->tagName = malloc(1);
+	val->isNesting = 0;
 	val->argsQty = 1;
 	val->args = malloc(sizeof(xmlArgs));
 	val->args->attr = malloc(1);
 	val->args->value = malloc(1);
 }
 
-void freeXML(xml *xmlDocument)
+void fillEmptyXML(xml *ptr, xml *parent) // leave parent at NULL if the tag is at top level
 {
+	ptr->parent = parent;
+	ptr->tagQty = 1;
+	ptr->dataArr = malloc(sizeof(xmlValue));
+	fillDefault(ptr->dataArr);
+}
+
+void appendElement(xml *ptr, xmlValue value)
+{
+	ptr->dataArr = realloc(ptr->dataArr, ptr->tagQty++*sizeof(xmlValue));
+	ptr->dataArr[ptr->tagQty-1].tagName = value.tagName;
+	ptr->dataArr[ptr->tagQty-1].argsQty = value.argsQty;
+	ptr->dataArr[ptr->tagQty-1].args = value.args;
+	ptr->dataArr[ptr->tagQty-1].value.str = value.value.str;
+	ptr->dataArr[ptr->tagQty-1].isNesting = value.isNesting;
+}
+
+char *xmlToString(xml *ptr)
+{
+	if (ptr->dataArr[0].tagName[0]!=0) return "";
+	xml *currPtr = ptr->dataArr->value.xmlVal;
 	int currTag = 0;
-	xml *currPtr = xmlDocument;
-	while(currTag<xmlDocument->tagQty&&currPtr==xmlDocument)
+	char *string = malloc(1);
+	int i, tabQty = 0, nested = 0, read = 0; // 0 - element; 1 - arguments; 2 - value
+	for (i = 0; !(currPtr->tagQty<=currTag&&currPtr->parent==ptr);)
 	{
-		if (currPtr->dataArr[currTag].value.xmlVal!=NULL)
+		if (read==0)
 		{
-			currPtr = currPtr->dataArr[currTag].value.xmlVal;
+			++tabQty;
+			string[i] = '<';
+			string = realloc(string, ++i+1);
+			for (int x = 0; currPtr->dataArr[currTag].tagName[x]!='\0'; ++x)
+			{
+				string[i] = currPtr->dataArr[currTag].tagName[x];
+				string = realloc(string, ++i+1);
+			}
+			read = 1;
+		}
+		else if (read==1)
+		{
+			for (int x = 0; x<currPtr->dataArr[currTag].argsQty; ++x)
+			{
+				if (currPtr->dataArr[currTag].args[x].attr[0]) { string[i] = ' '; string = realloc(string, ++i+1); }
+				for (int z = 0; currPtr->dataArr[currTag].args[x].attr[z]!=0; ++z)
+				{
+					string[i] = currPtr->dataArr[currTag].args[x].attr[z];
+					string = realloc(string, ++i+1);
+				}
+				if (currPtr->dataArr[currTag].args[x].value[0]) //empty value
+				{
+					string[i++] = '=';
+					string = realloc(string, ++i+1);
+					string[i-1] = '"';
+					for (int z = 0; currPtr->dataArr[currTag].args[x].value[z]; ++z)
+					{
+						string[i] = currPtr->dataArr[currTag].args[x].value[z];
+						string = realloc(string, ++i+1);
+					}
+					string[i] = '"';
+					string = realloc(string, ++i+1);
+				}
+			}
+			string[i] = '>';
+			string = realloc(string, ++i+1);
+			read = 2;
 		}
 		else
 		{
-			free(currPtr->dataArr[currTag].tagName);
-			currPtr->dataArr[currTag].tagName = NULL;
-			for (int i = 0; i<currPtr->dataArr[currTag].argsQty; ++i)
+			if (currPtr->dataArr[currTag].value.xmlVal->parent!=currPtr) // func fillDefault has not been called
 			{
-				free(currPtr->dataArr[currTag].args[i].attr);
-				free(currPtr->dataArr[currTag].args[i].value);
-			}
-			currPtr->dataArr[currTag].args->attr = NULL;
-			currPtr->dataArr[currTag].args->value = NULL;
-			free(currPtr->dataArr[currTag].args);
-			currPtr->dataArr[currTag].args = NULL;
-			free(currPtr->dataArr[currTag].value.str);
-			currPtr->dataArr[currTag].value.str = NULL;
-			if (&currPtr->dataArr[currTag+1]!=NULL)
-			{
-				++currTag;
+				--tabQty;
+				for (int x = 0; currPtr->dataArr[currTag].value.str[x]; ++x)
+				{
+					string[i] = currPtr->dataArr[currTag].value.str[x];
+					string = realloc(string, ++i+1);
+				}
+				string[i++] = '<';
+				string = realloc(string, ++i+1);
+				string[i-1] = '/';
+				for (int x = 0; currPtr->dataArr[currTag].tagName[x]; ++x)
+				{
+					string[i] = currPtr->dataArr[currTag].tagName[x];
+					string = realloc(string, ++i+1);
+				}
+				string[i] = '>';
+				string = realloc(string, ++i+1);
+				if (++currTag==currPtr->tagQty)
+				{
+					for (int x = 0; x<currPtr->parent->tagQty; ++x)
+					{
+						if (currPtr->parent->dataArr[x].value.xmlVal==currPtr)
+						{
+							currTag = x+1;
+							currPtr = currPtr->parent;
+							nested = 1;
+							break;
+						}
+					}
+					if (nested!=1) *(int*)(0x0) = 1; // this cant happen in a normal scenario, so it shouldn't segfault if all if OK
+				}
+				read = 0;
 			}
 			else
 			{
-				free(currPtr->dataArr);
-				currPtr = currPtr->parent;
+				read = 0;
+				currPtr = currPtr->dataArr[currTag].value.xmlVal;
+				currTag	= 0;
+			}
+goback:
+			if (currPtr==ptr) break;
+			if (nested) --tabQty;
+			string[i] = '\n';
+			string = realloc(string, ++i+tabQty+1);
+			for (int x = 0; x<tabQty; ++x)
+			{
+				string[i++] = '\t';
+			}
+			if (nested)
+			{
+				string[i++] = '<';
+				string = realloc(string, ++i+1);
+				string[i-1] = '/';
+				for (int z = 0; currPtr->dataArr[currTag-1].tagName[z]; ++z)
+				{
+					string[i] = currPtr->dataArr[currTag-1].tagName[z];
+					string = realloc(string, ++i+1);
+				}
+				string[i] = '>';
+				string = realloc(string, ++i+1);
+				if (currPtr->parent==ptr)
+				{
+					string[i] = '\n';
+					string = realloc(string, ++i+1);
+				}
+				nested = 0;
+				if (currTag>=currPtr->tagQty)
+				{
+					for (int x = 0; x<currPtr->parent->tagQty; ++x)
+					{
+						if (currPtr->parent->dataArr[x].value.xmlVal==currPtr)
+						{
+							currTag = x+1;
+							currPtr = currPtr->parent;
+							nested = 1;
+							goto goback;
+						}
+					}
+				}
 			}
 		}
 	}
+	string[i] = 0;
+	return string;
+}
+
+void freeXML(xml *xmlDocument)
+{
+	int currTag = 0;
+	xml *currPtr = xmlDocument->dataArr->value.xmlVal;
+	while(!(currTag==currPtr->tagQty&&currPtr->parent==xmlDocument))
+	{
+		free(currPtr->dataArr[currTag].tagName);
+		for (int i = 0; i<currPtr->dataArr[currTag].argsQty; ++i)
+		{
+			free(currPtr->dataArr[currTag].args[i].attr);
+			free(currPtr->dataArr[currTag].args[i].value);
+		}
+		free(currPtr->dataArr[currTag].args);
+		if (!currPtr->dataArr[currTag].isNesting)
+		{
+			if (currTag<currPtr->tagQty-1)
+			{
+				++currTag;
+				free(currPtr->dataArr[currTag].value.str);
+			}
+			else
+			{
+				do
+				{
+					for (int i = 0; i<currPtr->parent->tagQty; ++i)
+					{
+						if (currPtr->parent->dataArr[i].value.xmlVal==currPtr)
+						{
+							currTag = i+1;
+							free(currPtr->dataArr[i].value.xmlVal->dataArr);
+							free(currPtr->dataArr[i].value.xmlVal);
+							currPtr = currPtr->parent;
+							break;
+						}
+					}
+				}
+				while(currTag>=currPtr->parent->tagQty-1&&currPtr->parent!=xmlDocument);
+			}
+		}
+		else
+		{
+			currPtr = currPtr->dataArr[currTag].value.xmlVal;
+			currTag = 0;
+		}
+	}
+	free(xmlDocument->dataArr->args->attr);
+	free(xmlDocument->dataArr->args->value);
+	free(xmlDocument->dataArr->value.xmlVal);
+	free(xmlDocument->dataArr);
+	free(xmlDocument);
 }
 
 xml *parseXML(char *string)
 {
     xml *xmlDocument = malloc(sizeof(xml));
-	xmlDocument->tagQty = 1;
-	xmlDocument->dataArr = malloc(sizeof(xmlValue));
+	fillEmptyXML(xmlDocument, 0);
+	xmlDocument->tagQty = -1;
+	free(xmlDocument->dataArr->value.str);
 	xml *currPtr = xmlDocument;
+	currPtr->dataArr->value.xmlVal = malloc(sizeof(xml));
+	currPtr = currPtr->dataArr->value.xmlVal;
+	fillEmptyXML(currPtr, xmlDocument);
 	int len, size = 0, nested = 0;
-	fillDefault(xmlDocument->dataArr);
+#ifndef NOCHECKS
 	{
 		int opened = 0, quoteQty = 0, eqQty = 0;
 		for (len = 0; string[len]!='\0'; ++len)
@@ -91,46 +269,58 @@ xml *parseXML(char *string)
 		}
 		if (opened||!len||(quoteQty!=eqQty<<1)) return (void*)2;
 	}
+#else
+	for (len = 0; string[len]!='\0'; ++len);
+#endif
 	int readElem = 1, readArgs = 0, readValue = 0;
 	for (int i = 0; i<len; ++i)
     {
 		if (string[i] == '<')
         {
-            if (readValue&&string[i+1]=='/') 
+            if (string[i+1]=='/') // tag closing
 			{
-				currPtr->dataArr[currPtr->tagQty-1].value.str[size] = '\0';
-				if (--nested<0)
-				{
-					currPtr = currPtr->parent;
-					++nested;
-				}
 				i+=2;
-				size = 0;
-				readValue = 0;
+				if (--nested<0) // two tags closed in a row
+				{
+					++nested;
+					currPtr = currPtr->parent;
+					readValue = 0;
+				}
+				else if (nested==0)
+				{
+					readValue = 0;
+				}
 				for (int x = 0; string[i]!='>'; ++x, ++i)
 				{
+#ifndef NOCHECKS
 					if (string[i]!=currPtr->dataArr[currPtr->tagQty-1].tagName[x]) 
 					{
 						return (void*)1;	// check if opening and closing tags are matching
 					}
+#endif
+				}
+				if(size!=0)
+				{
+					currPtr->dataArr[currPtr->tagQty-1].value.str[size] = '\0';
+					size = 0;
 				}
 			}
-			else if (!readValue&&string[i+1]!='/'&&currPtr->dataArr[0].tagName[0]!='\0')
+			else if (!readValue&&string[i+1]!='/'&&currPtr->dataArr[0].tagName[0]!='\0') //tag opening
 			{
 				++(currPtr->tagQty);
+				nested = 1;
 				currPtr->dataArr = realloc(currPtr->dataArr, currPtr->tagQty*sizeof(xmlValue));
 				fillDefault(&currPtr->dataArr[currPtr->tagQty-1]);	
-				readElem = 1; //group elements with equal indentation
+				readElem = 1; // group elements with equal indentation
 			}
-			else if (readValue&&string[i+1]!='/') 
+			else if (readValue&&string[i+1]!='/') // tag opening inside another tag, nesting
 			{ 
-				readValue = 0, readElem = 1, nested = 1; 
+				currPtr->dataArr[currPtr->tagQty-1].isNesting = 1;
+				free(currPtr->dataArr[currPtr->tagQty-1].value.str); 
 				currPtr->dataArr[currPtr->tagQty-1].value.xmlVal = malloc(sizeof(xml)); 
-				currPtr->dataArr[currPtr->tagQty-1].value.xmlVal->parent = currPtr; 
-				currPtr = currPtr->dataArr[currPtr->tagQty-1].value.xmlVal; 
-				currPtr->dataArr = malloc(sizeof(xmlValue));
-				currPtr->tagQty = 1;
-				fillDefault(&currPtr->dataArr[0]); // nesting tags
+				fillEmptyXML(currPtr->dataArr[currPtr->tagQty-1].value.xmlVal, currPtr); 
+				currPtr = currPtr->dataArr[currPtr->tagQty-1].value.xmlVal;			// nesting tags
+				readValue = 0, readElem = 1, nested = 1; 
 			}
         }
 		else if (string[i]=='\n'||string[i]=='\t'); //ignore all newlines and \t
