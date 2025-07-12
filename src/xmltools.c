@@ -31,6 +31,7 @@ void fillDefault(xmlValue *val)
 {
 	val->value.str = malloc(1);
 	val->tagName = malloc(1);
+	val->tagName[0] = 0;
 	val->isNesting = 0;
 	val->argsQty = 1;
 	val->args = malloc(sizeof(xmlArgs));
@@ -137,7 +138,7 @@ char *xmlToString(xml *ptr)
 							break;
 						}
 					}
-					if (nested!=1) *(int*)(0x0) = 1; // this cant happen in a normal scenario, so it shouldn't segfault if all if OK
+					if (nested!=1) break;
 				}
 				read = 0;
 			}
@@ -222,7 +223,7 @@ void freeXML(xml *xmlDocument)
 					{
 						if (currPtr->parent->dataArr[i].value.xmlVal==currPtr)
 						{
-							currTag = i+1;
+							currTag = i;
 							free(currPtr->dataArr[i].value.xmlVal->dataArr);
 							free(currPtr->dataArr[i].value.xmlVal);
 							currPtr = currPtr->parent;
@@ -231,6 +232,7 @@ void freeXML(xml *xmlDocument)
 					}
 				}
 				while(currTag>=currPtr->parent->tagQty-1&&currPtr->parent!=xmlDocument);
+				++currTag;
 			}
 		}
 		else
@@ -256,7 +258,7 @@ xml *parseXML(char *string)
 	currPtr->dataArr->value.xmlVal = malloc(sizeof(xml));
 	currPtr = currPtr->dataArr->value.xmlVal;
 	fillEmptyXML(currPtr, xmlDocument);
-	int len, size = 0, nested = 0;
+	int len, size = 0, nested = 1;
 #ifndef NOCHECKS
 	{
 		int opened = 0, quoteQty = 0, eqQty = 0;
