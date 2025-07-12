@@ -14,7 +14,7 @@ typedef struct xmlValueStruct xmlValue;
 
 struct xmlValueStruct {
 	char *tagName;
-	struct {
+	union {
 		char *str;
 		xml *xmlVal;
 	} value;

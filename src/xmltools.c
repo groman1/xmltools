@@ -262,12 +262,16 @@ xml *parseXML(char *string)
 		int opened = 0, quoteQty = 0, eqQty = 0;
 		for (len = 0; string[len]!='\0'; ++len)
 		{
-			if (string[len] == '<') ++opened;
-			else if (string[len] == '>') --opened;
+			if (string[len] == '<') opened+=3;
+			else if (string[len] == '>') opened-=2;
+			else if (string[len] == '/') opened-=2;
 			else if (string[len] == '"') ++quoteQty;
 			else if (string[len] == '=') ++eqQty; //check if all args have 2 quotes
 		}
-		if (opened||!len||(quoteQty!=eqQty<<1)) return (void*)2;
+		if (opened||!len||(quoteQty!=eqQty<<1))
+		{
+			return (xml*)(opened?1<<8:0+!len<<4+quoteQty!=eqQty<<1);
+		}
 	}
 #else
 	for (len = 0; string[len]!='\0'; ++len);
