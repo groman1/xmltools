@@ -1,3 +1,6 @@
+example:
+	gcc src/example.c src/xmltools.c -o example
+
 shared:
 	gcc -c src/xmltools.c -Wall -Werror -fPIC
 	gcc -shared -o xmltools.so xmltools.o

@@ -2,6 +2,7 @@
 #define XMLTOOLS_H_
 
 #define bool unsigned char
+#define appendElement(ptr, value) insertElement(ptr, value, ptr->tagQty)
 
 typedef struct {
 	char *attr;
@@ -33,5 +34,9 @@ char *xmlToString(xml *ptr);
 void fillEmptyXML(xml *ptr);
 xml *parseXML(char *string);
 void freeXML(xml *xmlDocument);
+void freeXMLValue(xmlValue *value, int nestingCleared);
+void copyElement(xml *ptr, xmlValue value, int position);
+void removeElement(xml *ptr, int index);
+void insertElement(xml *ptr, xmlValue value, int index);
 
 #endif
