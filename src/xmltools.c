@@ -316,6 +316,15 @@ void insertElement(xml *ptr, xmlValue value, int index)
 	}
 }
 
+int findElement(xml *ptr, char *textToFind)
+{
+	for (int i = 0; i<ptr->tagQty; ++i)
+	{
+		if (!strcmp(ptr->dataArr[i].tagName, textToFind)) return i;
+	}
+	return -1;
+}
+
 xml *parseXML(char *string)
 {
     xml *xmlDocument = malloc(sizeof(xml));

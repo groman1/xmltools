@@ -38,5 +38,6 @@ void freeXMLValue(xmlValue *value, int nestingCleared);
 void copyElement(xml *ptr, xmlValue value, int position);
 void removeElement(xml *ptr, int index);
 void insertElement(xml *ptr, xmlValue value, int index);
+int findElement(xml *ptr, char *textToFind);
 
 #endif

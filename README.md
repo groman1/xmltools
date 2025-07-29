@@ -21,4 +21,5 @@ xmlToString(xml *ptr) : creates a string from a struct xml*\
 copyElement(xml *ptr, xmlValue value, int index) : copies xmlValue to a specified index, shouldn't be used on its own\
 removeElement(xml *ptr, int index) : removes element from ptr.dataArr at index specified\
 insertElement(xml *ptr, xmlValue value, int index) : insert element at a specified position and shift element after it\
-appendElement(xml *ptr, xmlValue value) : appends an element to a ptr.dataArr
+appendElement(xml *ptr, xmlValue value) : appends an element to a ptr.dataArr\
+findElement(xml *ptr, char *textToFind) : finds an element with the tag name textToFind and returns its index
