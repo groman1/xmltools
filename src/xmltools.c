@@ -49,8 +49,9 @@ void fillEmptyXML(xml *ptr, xml *parent) // leave parent at NULL if the tag is a
 	fillDefault(ptr->dataArr);
 }
 
-char *xmlToString(xml *ptr)
+char *xmlToString(xml *ptrold)
 {
+	xml *ptr = ptrold->parent;
 	if (ptr->dataArr[0].tagName[0]!=0) return "";
 	xml *currPtr = ptr->dataArr->value.xmlVal;
 	int currTag = 0;
@@ -190,46 +191,45 @@ goback:
 void freeXML(xml *xmlDocument)
 {
 	int currTag = 0;
-	xml *currPtr = xmlDocument->dataArr->value.xmlVal;
-	while(!(currTag==currPtr->tagQty&&currPtr->parent==xmlDocument))
+	while(!(currTag==xmlDocument->tagQty&&xmlDocument->parent==xmlDocument))
 	{
-		free(currPtr->dataArr[currTag].tagName);
-		for (int i = 0; i<currPtr->dataArr[currTag].argsQty; ++i)
+		free(xmlDocument->dataArr[currTag].tagName);
+		for (int i = 0; i<xmlDocument->dataArr[currTag].argsQty; ++i)
 		{
-			free(currPtr->dataArr[currTag].args[i].attr);
-			free(currPtr->dataArr[currTag].args[i].value);
+			free(xmlDocument->dataArr[currTag].args[i].attr);
+			free(xmlDocument->dataArr[currTag].args[i].value);
 		}
-		free(currPtr->dataArr[currTag].args);
-		if (!currPtr->dataArr[currTag].isNesting)
+		free(xmlDocument->dataArr[currTag].args);
+		if (!xmlDocument->dataArr[currTag].isNesting)
 		{
-			if (currTag<currPtr->tagQty-1)
+			if (currTag<xmlDocument->tagQty-1)
 			{
 				++currTag;
-				free(currPtr->dataArr[currTag].value.str);
+				free(xmlDocument->dataArr[currTag].value.str);
 			}
 			else
 			{
 				do
 				{
-					for (int i = 0; i<currPtr->parent->tagQty; ++i)
+					for (int i = 0; i<xmlDocument->parent->tagQty; ++i)
 					{
-						if (currPtr->parent->dataArr[i].value.xmlVal==currPtr)
+						if (xmlDocument->parent->dataArr[i].value.xmlVal==xmlDocument)
 						{
 							currTag = i;
-							free(currPtr->dataArr[i].value.xmlVal->dataArr);
-							free(currPtr->dataArr[i].value.xmlVal);
-							currPtr = currPtr->parent;
+							free(xmlDocument->dataArr[i].value.xmlVal->dataArr);
+							free(xmlDocument->dataArr[i].value.xmlVal);
+							xmlDocument = xmlDocument->parent;
 							break;
 						}
 					}
 				}
-				while(currTag>=currPtr->parent->tagQty-1&&currPtr->parent!=xmlDocument);
+				while(currTag>=xmlDocument->parent->tagQty-1&&xmlDocument->parent!=xmlDocument);
 				++currTag;
 			}
 		}
 		else
 		{
-			currPtr = currPtr->dataArr[currTag].value.xmlVal;
+			xmlDocument = xmlDocument->dataArr[currTag].value.xmlVal;
 			currTag = 0;
 		}
 	}
@@ -282,9 +282,9 @@ void copyElement(xml *ptr, xmlValue value, int position)
 	}
 }
 
-void removeElement(xml *ptr, int index)
+int removeElement(xml *ptr, int index)
 {
-	if (index>ptr->tagQty-1) return;
+	if (index>ptr->tagQty-1) return 1;
 	--ptr->tagQty;
 
 	if (ptr->dataArr[index].isNesting)	
@@ -299,11 +299,13 @@ void removeElement(xml *ptr, int index)
 		ptr->dataArr[i] = ptr->dataArr[i+1];
 	}
 	ptr->dataArr = realloc(ptr->dataArr, ptr->tagQty);
+
+	return 0;
 }
 
-void insertElement(xml *ptr, xmlValue value, int index)
+int insertElement(xml *ptr, xmlValue value, int index)
 {
-	if (index>ptr->tagQty) return;
+	if (index>ptr->tagQty) return 1;
 	else if (index==ptr->tagQty) copyElement(ptr, value, ptr->tagQty);
 	else
 	{
@@ -314,6 +316,7 @@ void insertElement(xml *ptr, xmlValue value, int index)
 		}
 		copyElement(ptr, value, index);
 	}
+	return 0;
 }
 
 int findElement(xml *ptr, char *textToFind)
@@ -323,6 +326,22 @@ int findElement(xml *ptr, char *textToFind)
 		if (!strcmp(ptr->dataArr[i].tagName, textToFind)) return i;
 	}
 	return -1;
+}
+
+int swapElements(xml *ptr, int firstElemId, int secondElemId)
+{
+	if (firstElemId>=ptr->tagQty||secondElemId>=ptr->tagQty||firstElemId<0||secondElemId<0) return 1;
+	xmlValue tempvalue = ptr->dataArr[firstElemId];
+	ptr->dataArr[firstElemId] = ptr->dataArr[secondElemId];
+	ptr->dataArr[secondElemId] = tempvalue;
+	return 0;
+}
+
+int nestElement(xml *ptr, xml *newptr, int index)
+{
+	if (!ptr->dataArr[index].isNesting) return 1;
+	newptr = ptr->dataArr[index].value.xmlVal;
+	return 0;
 }
 
 xml *parseXML(char *string)
@@ -489,5 +508,5 @@ xml *parseXML(char *string)
             }
         }
     }
-    return xmlDocument;
+    return xmlDocument->dataArr->value.xmlVal;
 }

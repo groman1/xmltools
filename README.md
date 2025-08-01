@@ -22,4 +22,6 @@ copyElement(xml *ptr, xmlValue value, int index) : copies xmlValue to a specifie
 removeElement(xml *ptr, int index) : removes element from ptr.dataArr at index specified\
 insertElement(xml *ptr, xmlValue value, int index) : insert element at a specified position and shift element after it\
 appendElement(xml *ptr, xmlValue value) : appends an element to a ptr.dataArr\
-findElement(xml *ptr, char *textToFind) : finds an element with the tag name textToFind and returns its index
+findElement(xml *ptr, char *textToFind) : finds an element with the tag name textToFind and returns its index\
+swapElements(xml *ptr, int firstElemId, int secondElemId) : swaps elements at specified positions\
+nestElement(xml *ptr, xml *newptr, int index) : sets newptr to ptr->dataArr[index].value.xmlVal

@@ -3,6 +3,7 @@
 
 #define bool unsigned char
 #define appendElement(ptr, value) insertElement(ptr, value, ptr->tagQty)
+#define initEmptyXML() parseXML("")
 
 typedef struct {
 	char *attr;
@@ -36,8 +37,10 @@ xml *parseXML(char *string);
 void freeXML(xml *xmlDocument);
 void freeXMLValue(xmlValue *value, int nestingCleared);
 void copyElement(xml *ptr, xmlValue value, int position);
-void removeElement(xml *ptr, int index);
-void insertElement(xml *ptr, xmlValue value, int index);
+int removeElement(xml *ptr, int index);
+int insertElement(xml *ptr, xmlValue value, int index);
 int findElement(xml *ptr, char *textToFind);
+int swapElements(xml *ptr, int firstElemId, int secondElemId);
+int nestElement(xml *ptr, xml *newptr, int index);
 
 #endif
