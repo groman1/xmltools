@@ -24,4 +24,5 @@ int main()
 	printf("After swap: %s\n", document->dataArr[0].tagName);
 	printf("Find test: %s\n", document->dataArr[findElement(document, "bottom")].args[0].attr);
 	freeXML(document);
+	free(testvalue.args);
 }
