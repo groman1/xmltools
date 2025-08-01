@@ -2,7 +2,6 @@
 #include <string.h>
 
 #define bool unsigned char
-#define appendElement(ptr, value) insertElement(ptr, value, ptr->tagQty)
 
 typedef struct {
     char *attr;
@@ -191,7 +190,7 @@ goback:
 void freeXML(xml *xmlDocument)
 {
 	int currTag = 0;
-	while(!(currTag==xmlDocument->tagQty&&xmlDocument->parent==xmlDocument))
+	while(!(currTag==xmlDocument->tagQty&&xmlDocument->parent->tagQty==-1))
 	{
 		free(xmlDocument->dataArr[currTag].tagName);
 		for (int i = 0; i<xmlDocument->dataArr[currTag].argsQty; ++i)
@@ -204,8 +203,8 @@ void freeXML(xml *xmlDocument)
 		{
 			if (currTag<xmlDocument->tagQty-1)
 			{
-				++currTag;
 				free(xmlDocument->dataArr[currTag].value.str);
+				++currTag;
 			}
 			else
 			{
@@ -216,14 +215,14 @@ void freeXML(xml *xmlDocument)
 						if (xmlDocument->parent->dataArr[i].value.xmlVal==xmlDocument)
 						{
 							currTag = i;
-							free(xmlDocument->dataArr[i].value.xmlVal->dataArr);
-							free(xmlDocument->dataArr[i].value.xmlVal);
+							free(xmlDocument->dataArr);
 							xmlDocument = xmlDocument->parent;
+							free(xmlDocument->dataArr[i].value.xmlVal);
 							break;
 						}
 					}
 				}
-				while(currTag>=xmlDocument->parent->tagQty-1&&xmlDocument->parent!=xmlDocument);
+				while(currTag>=xmlDocument->parent->tagQty-1&&xmlDocument->tagQty==-1);
 				++currTag;
 			}
 		}
@@ -233,11 +232,13 @@ void freeXML(xml *xmlDocument)
 			currTag = 0;
 		}
 	}
+	xmlDocument = xmlDocument->parent;
 	free(xmlDocument->dataArr->args->attr);
 	free(xmlDocument->dataArr->args->value);
 	free(xmlDocument->dataArr->value.xmlVal);
 	free(xmlDocument->dataArr);
 	free(xmlDocument);
+	xmlDocument = 0;
 }
 
 void freeXMLValue(xmlValue *value, int nestedCleared)
@@ -256,15 +257,15 @@ void copyElement(xml *ptr, xmlValue value, int position)
 {
 	ptr->dataArr = realloc(ptr->dataArr, ++ptr->tagQty*sizeof(xmlValue));
 
-	ptr->dataArr[position].tagName = malloc(strlen(value.tagName));
+	ptr->dataArr[position].tagName = malloc(strlen(value.tagName)+1);
 	strcpy(ptr->dataArr[position].tagName, value.tagName);
 
 	ptr->dataArr[position].argsQty = value.argsQty;
 	ptr->dataArr[position].args = malloc(sizeof(xmlArgs)*value.argsQty);
 	for (int i = 0; i<value.argsQty; ++i)
 	{
-		ptr->dataArr[position].args[i].attr = malloc(strlen(value.args[i].attr));
-		ptr->dataArr[position].args[i].value = malloc(strlen(value.args[i].value));
+		ptr->dataArr[position].args[i].attr = malloc(strlen(value.args[i].attr)+1);
+		ptr->dataArr[position].args[i].value = malloc(strlen(value.args[i].value)+1);
 
 		strcpy(ptr->dataArr[position].args[i].attr, value.args[i].attr);
 		strcpy(ptr->dataArr[position].args[i].value, value.args[i].value);
@@ -277,7 +278,7 @@ void copyElement(xml *ptr, xmlValue value, int position)
 	}
 	else
 	{
-		ptr->dataArr[position].value.str = malloc(strlen(value.value.str));
+		ptr->dataArr[position].value.str = malloc(strlen(value.value.str)+1);
 		strcpy(ptr->dataArr[position].value.str, value.value.str);
 	}
 }
