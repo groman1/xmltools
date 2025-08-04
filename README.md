@@ -1,6 +1,9 @@
 # XMLTools by groman1
+Lightweight C library for reading XML files
 
-# struct xml:
+# Documentation
+
+## struct xml:
 tagQty : quanitity of tags on the same level;\
 parent : the parent group of tags;\
 dataArr : the tags on the same level:
@@ -12,11 +15,11 @@ dataArr : the tags on the same level:
 - argsCount : the quanitity of arguments ( 1 by default, increments only if there is more than one tag present )
 - isNesting : specifies whether the tag has another tag in it
 
-# Functions: 
+## Functions: 
 parseXML(char* string) : parses struct xml from string, returns xml*\
 fillEmptyXML(xml *ptr) : allocates memory for the default xml*\
 freeXML(xml *xmlDocument) : frees all the allocated memory for an xml structure\
-freeXMLValue(xmlValue *value, int nestingCleared) : frees all memory from a specified dataArr element, nestingCleared specifies whether the memory at dataArr.value has been deallocated\
+freeXMLValue(xml *ptr, int index) : frees all memory from xml->dataArr[index]\
 xmlToString(xml *ptr) : creates a string from a struct xml*\
 copyElement(xml *ptr, xmlValue value, int index) : copies xmlValue to a specified index, shouldn't be used on its own\
 removeElement(xml *ptr, int index) : removes element from ptr.dataArr at index specified\
