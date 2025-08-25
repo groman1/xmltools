@@ -58,7 +58,7 @@ void fillHead(xml *ptr)
 char *xmlToString(xml *ptrold)
 {
 	xml *ptr = ptrold->parent;
-	if (ptr->dataArr[0].tagName!=0) return "";
+	if (ptr->parent!=0) return "";
 	xml *currPtr = ptr->dataArr->value.xmlVal;
 	int currTag = 0;
 	char *string = malloc(1);
