@@ -1,7 +1,7 @@
 example:
 	gcc src/example.c src/xmltools.c -o example
 example-debug:
-	gcc src/example.c src/xmltools.c -g -o example-g
+	gcc src/example.c src/xmltools.c -fsanitize=address -g -o example-g
 shared:
 	gcc -c src/xmltools.c -Wall -Werror -fPIC
 	gcc -shared -o xmltools.so xmltools.o
