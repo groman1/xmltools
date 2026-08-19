@@ -1,5 +1,5 @@
 example:
-	gcc src/example.c src/xmltools.c -o example
+	c99 src/example.c src/xmltools.c -o example
 example-debug:
 	gcc src/example.c src/xmltools.c -fsanitize=address -g -o example-g
 shared:
