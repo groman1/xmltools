@@ -4,29 +4,9 @@
 #include <string.h>
 #include <wchar.h>
 
+#include "xmltools.h"
+
 #define min3(a, b, c) (((a)<(b)?(a):(b))<(c)?((a)<(b)?(a):(b)):(c))
-
-typedef struct {
-    wchar_t *name;
-    wchar_t *value;
-} xmlArg;
-
-typedef struct xmlStruct xml;
-typedef struct xmlTagStruct xmlTag;
-
-struct xmlTagStruct {
-    wchar_t *tagName;
-	xml *child;
-    xmlArg *args;
-    uint32_t argsQty;
-	bool isString;
-};
-
-struct xmlStruct {
-	xml *parent;
-	uint32_t tagQty;
-	xmlTag *tagArr;
-};
 
 typedef enum {
 	TAG,
@@ -41,7 +21,7 @@ void fillXMLHeader(xml *header, xml *parent)
 	header->tagArr = 0;
 }
 
-wchar_t *trim(wchar_t *source, uint32_t len)
+char_t *trim(char_t *source, uint32_t len)
 {
 	while (*source==L' '||*source==L'\t'||*source==L'\n')
 	{
@@ -49,15 +29,15 @@ wchar_t *trim(wchar_t *source, uint32_t len)
 		--len;
 	}
 	while ((source[len-1]==L' '||source[len-1]==L'\t'||source[len-1]==L'\n')&&len>0) --len;
-	wchar_t *dest = malloc(sizeof(wchar_t)*(len+1));
-	wcsncpy(dest, source, len);
+	char_t *dest = malloc(sizeof(char_t)*(len+1));
+	string_ncpy(dest, source, len);
 	dest[len] = 0;
 	return dest;
 }
 
 #define currTag (currPtr->tagArr[currPtr->tagQty-1])
 
-xml *parseXML(wchar_t *str)
+xml *parseXML(char_t *str)
 {
 	xml *document = malloc(sizeof(xml)), *currPtr = document;
 
@@ -65,12 +45,12 @@ xml *parseXML(wchar_t *str)
 
 	parseState state = TAG;
 
-	for (uint32_t i = 0; i<wcslen(str); ++i)
+	for (uint32_t i = 0; i<string_len(str); ++i)
 	{
 		if (str[i]==' ' || str[i]=='\n' || str[i]=='\t') continue;
 
-		if (str+i == wcsstr(str+i, L"<!--")) // comments
-			i = wcsstr(str+i+4, L"-->")-str+4;
+		if (str+i == string_str(str+i, L"<!--")) // comments
+			i = string_str(str+i+4, L"-->")-str+4;
 
 		switch (state)
 		{
@@ -79,7 +59,7 @@ xml *parseXML(wchar_t *str)
 				{
 					if (str[i+1]==L'?') // pi, dont worry for now
 					{
-						i = wcsstr(str+i, L"?>")-str+2;
+						i = string_str(str+i, L"?>")-str+2;
 						break;
 					}
 					currPtr->tagArr = realloc(currPtr->tagArr, (++currPtr->tagQty)*sizeof(xmlTag));
@@ -88,9 +68,9 @@ xml *parseXML(wchar_t *str)
 					currTag.argsQty = 0;
 					currTag.isString = false;
 					++i;
-					uint32_t size = min3(wcschr(str+i, L' ')-1, wcschr(str+i, L'/')-1, wcschr(str+i, L'>')-1)+1-str-i; // done so that if not found the value is overflown and isn't counted an min
-					currTag.tagName = malloc(sizeof(wchar_t)*(size+1));
-					wcsncpy(currTag.tagName, str+i, size);
+					uint32_t size = min3(string_chr(str+i, L' ')-1, string_chr(str+i, L'/')-1, string_chr(str+i, L'>')-1)+1-str-i; // done so that if not found the value is overflown and isn't counted an min
+					currTag.tagName = malloc(sizeof(char_t)*(size+1));
+					string_ncpy(currTag.tagName, str+i, size);
 					currTag.tagName[size] = 0;
 					i += size-1;
 					++state;
@@ -105,7 +85,8 @@ xml *parseXML(wchar_t *str)
 				if (str[i]==L'/')
 				{
 					currTag.child = NULL;
-					state = TAG;
+					++i;
+					state = VAL;
 					break;
 				}
 				else if (str[i]==L'>')
@@ -117,24 +98,27 @@ xml *parseXML(wchar_t *str)
 					break;
 				}
 				currTag.args = realloc(currTag.args, (++currTag.argsQty)*sizeof(xmlArg));
-				uint32_t lenSpace = wcschr(str+i, L' ')-str-i, lenEq = wcschr(str+i, L'=')-str-i;
+				uint32_t lenSpace = string_chr(str+i, L' ')-str-i, lenEq = string_chr(str+i, L'=')-str-i;
 				
 				if (lenEq>lenSpace) // no value
 				{
-					currTag.args[currTag.argsQty-1].name = malloc(sizeof(wchar_t)*(lenSpace)); // TODO?
-					wcsncpy(currTag.args[currTag.argsQty-1].name, str+i, lenSpace);
+					currTag.args[currTag.argsQty-1].name = malloc(sizeof(char_t)*(lenSpace+1));
+					string_ncpy(currTag.args[currTag.argsQty-1].name, str+i, lenSpace);
+					currTag.args[currTag.argsQty-1].name[lenSpace] = 0;
 					currTag.args[currTag.argsQty-1].value = NULL;
 					i += lenSpace;
 				}
 				else
 				{
-					currTag.args[currTag.argsQty-1].name = malloc(sizeof(wchar_t)*(lenEq)); // TODO?
-					wcsncpy(currTag.args[currTag.argsQty-1].name, str+i, lenEq);
+					currTag.args[currTag.argsQty-1].name = malloc(sizeof(char_t)*(lenEq+1));
+					string_ncpy(currTag.args[currTag.argsQty-1].name, str+i, lenEq);
+					currTag.args[currTag.argsQty-1].name[lenEq] = 0;
 					i += lenEq+1;
 					if (str[i++]!=L'"') return (xml*)1;
-					lenSpace = wcschr(str+i, L'"')-str-i;
-					currTag.args[currTag.argsQty-1].value = malloc(sizeof(wchar_t)*(lenSpace));
-					wcsncpy(currTag.args[currTag.argsQty-1].value, str+i, lenSpace);
+					lenSpace = string_chr(str+i, L'"')-str-i;
+					currTag.args[currTag.argsQty-1].value = malloc(sizeof(char_t)*(lenSpace+1));
+					string_ncpy(currTag.args[currTag.argsQty-1].value, str+i, lenSpace);
+					currTag.args[currTag.argsQty-1].value[lenSpace] = 0;
 					i += lenSpace;
 				}
 				break;
@@ -144,12 +128,12 @@ xml *parseXML(wchar_t *str)
 					if (str[i+1]==L'/') // tag closing
 					{
 						++i;
-						uint32_t tagEnd = wcschr(str+i, L'>')-str-i-1;
-						wchar_t *tagEndText = malloc(sizeof(wchar_t)*(tagEnd+1));
-						wcsncpy(tagEndText, str+i+1, tagEnd);
+						uint32_t tagEnd = string_chr(str+i, L'>')-str-i-1;
+						char_t *tagEndText = malloc(sizeof(char_t)*(tagEnd+1));
+						string_ncpy(tagEndText, str+i+1, tagEnd);
 						tagEndText[tagEnd] = 0;
 						currPtr = currPtr->parent;
-						if (wcscmp(tagEndText, currTag.tagName)) return (xml*)1;
+						if (string_cmp(tagEndText, currTag.tagName)) return (xml*)1;
 						i += tagEnd+1;
 						free(tagEndText);
 						break;
@@ -165,7 +149,7 @@ xml *parseXML(wchar_t *str)
 					currTag.child = NULL;
 					currTag.args = NULL;
 					currTag.argsQty = 0;
-					uint32_t size = wcschr(str+i, L'<')-str-i;
+					uint32_t size = string_chr(str+i, L'<')-str-i;
 					currTag.tagName = trim(str+i, size);
 					i += size-1;
 				}
@@ -188,32 +172,6 @@ void insertElement(xml *ptr, xmlTag tag, uint32_t index)
 	ptr->tagArr[index] = tag;
 }
 
-void removeElement(xml *ptr, uint32_t index)
-{
-	if (index>=ptr->tagQty) return;
-	for (; index<ptr->tagQty-1; ++index)
-		ptr->tagArr[index] = ptr->tagArr[index+1];
-	ptr->tagArr = realloc(ptr->tagArr, sizeof(xmlTag)*(--ptr->tagQty));
-}
-
-xmlTag *findElement(xml *ptr, wchar_t* text)
-{
-	for (int i = 0; i<ptr->tagQty; ++i)
-		if (wcsstr(ptr->tagArr[i].tagName, text))
-			return &ptr->tagArr[i];
-	return NULL;
-}
-
-void swapElements(xml *ptr, uint32_t index1, uint32_t index2)
-{
-	if (index1>=ptr->tagQty||index2>=ptr->tagQty) return;
-	xmlTag tempTag = ptr->tagArr[index1];
-	ptr->tagArr[index1] = ptr->tagArr[index2];
-	ptr->tagArr[index2] = tempTag;
-}
-
-void freeXML(xml*);
-
 void freeXMLTag(xmlTag ptr)
 {
 	if (ptr.child)
@@ -227,7 +185,7 @@ void freeXMLTag(xmlTag ptr)
 		for (uint32_t i = 0; i<ptr.argsQty; ++i)
 		{
 			free(ptr.args[i].name);
-			free(ptr.args[i].value);
+			if (ptr.args[i].value) free(ptr.args[i].value);
 		}
 		free(ptr.args);
 	}
@@ -238,4 +196,126 @@ void freeXML(xml *ptr)
 	ptr->parent = NULL;
 	for (uint32_t i = 0; i<ptr->tagQty; ++i)
 		freeXMLTag(ptr->tagArr[i]);
+	free(ptr->tagArr);
+	free(ptr);
+}
+
+void removeElement(xml *ptr, uint32_t index)
+{
+	if (index>=ptr->tagQty) return;
+	freeXMLTag(ptr->tagArr[index]);
+	for (; index<ptr->tagQty-1; ++index)
+		ptr->tagArr[index] = ptr->tagArr[index+1];
+	ptr->tagArr = realloc(ptr->tagArr, sizeof(xmlTag)*(--ptr->tagQty));
+}
+
+xmlTag *findElement(xml *ptr, char_t* text)
+{
+	for (int i = 0; i<ptr->tagQty; ++i)
+		if (string_str(ptr->tagArr[i].tagName, text))
+			return &ptr->tagArr[i];
+	return NULL;
+}
+
+void swapElements(xml *ptr, uint32_t index1, uint32_t index2)
+{
+	if (index1>=ptr->tagQty||index2>=ptr->tagQty) return;
+	xmlTag tempTag = ptr->tagArr[index1];
+	ptr->tagArr[index1] = ptr->tagArr[index2];
+	ptr->tagArr[index2] = tempTag;
+}
+
+char_t *xmlToString(xml *ptr, bool format)
+{
+	char_t *str = NULL;
+	xml *currPtr = ptr;
+	uint32_t currTag = 0, indent = 0, length = 0;
+
+	while (!(currPtr==ptr && currTag==currPtr->tagQty))
+	{
+		if (currTag == currPtr->tagQty) // reached the end of current level
+		{
+			for (currTag = 0; currTag<currPtr->parent->tagQty; ++currTag)
+				if (currPtr->parent->tagArr[currTag].child==currPtr)
+					break;
+			--indent;
+			currPtr = currPtr->parent;
+			str = realloc(str, sizeof(char_t)*(length+(indent+1)*format+string_len(currPtr->tagArr[currTag].tagName)+4));
+			if (format)
+				for (uint32_t i = 0; i<indent; ++i, ++length)
+					str[length] = L'\t';
+
+			str[length++] = L'<';
+			str[length++] = L'/';
+
+			for (uint32_t i = 0; currPtr->tagArr[currTag].tagName[i]; ++i)
+				str[length++] = currPtr->tagArr[currTag].tagName[i];
+
+			str[length++] = L'>';
+
+
+			if (format)
+				str[length++] = L'\n';
+
+			++currTag;
+			continue;
+		}
+
+		str = realloc(str, sizeof(char_t)*(length+(indent)*format+string_len(currPtr->tagArr[currTag].tagName)+!currPtr->tagArr[currTag].isString+format));
+		if (format)
+			for (uint32_t i = 0; i<indent; ++i)
+				str[length++] = L'\t';
+
+		if (!currPtr->tagArr[currTag].isString)
+			str[length++] = L'<';
+
+		for (uint32_t i = 0; currPtr->tagArr[currTag].tagName[i]; ++i)
+			str[length++] = currPtr->tagArr[currTag].tagName[i];
+
+		for (uint32_t i = 0; i<currPtr->tagArr[currTag].argsQty; ++i) // args, dont check for isString as it cant have args (if parsed properly ofc)
+		{
+			str = realloc(str, sizeof(char_t)*(length+string_len(currPtr->tagArr[currTag].args[i].name)+2));
+			str[length++] = L' ';
+			for (uint32_t t = 0; currPtr->tagArr[currTag].args[i].name[t]; ++t)
+				str[length++] = currPtr->tagArr[currTag].args[i].name[t];
+
+			if (currPtr->tagArr[currTag].args[i].value)
+			{
+				str = realloc(str, sizeof(char_t)*(length+string_len(currPtr->tagArr[currTag].args[i].value)+4));
+				str[length++] = L'=';
+				str[length++] = L'"';
+				for (uint32_t t = 0; currPtr->tagArr[currTag].args[i].value[t]; ++t)
+					str[length++] = currPtr->tagArr[currTag].args[i].value[t];
+				str[length++] = L'"';
+			}
+		}
+
+		if (!currPtr->tagArr[currTag].isString)
+		{
+			str = realloc(str, sizeof(char_t)*(length+2+(currPtr->tagArr[currTag].child==0)));
+			if (!currPtr->tagArr[currTag].child) str[length++] = L'/';
+			str[length++] = L'>';
+		}
+
+		if (currPtr->tagArr[currTag].child)
+		{
+			currPtr = currPtr->tagArr[currTag].child;
+			++indent;
+			currTag = 0;
+		}
+		else
+			++currTag;
+
+		str[length++] = '\n';
+	}
+
+	str = realloc(str, sizeof(char_t)*(length+1));
+	str[length] = 0;
+	return str;
+}
+
+xml *nestElement(xml *ptr, uint32_t index)
+{
+	if (index>=ptr->tagQty || !ptr->tagArr[index].child) return ptr;
+	return ptr->tagArr[index].child;
 }
