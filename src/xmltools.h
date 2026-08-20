@@ -13,6 +13,7 @@
 
 #ifdef WIDECHAR
 #define char_t wchar_t
+#define S(s) L##s
 #define string_str wcsstr
 #define string_cmp wcscmp
 #define string_cpy wcscpy
@@ -20,6 +21,7 @@
 #define string_len wcslen
 #define string_chr wcschr
 #else
+#define S(s) s
 #define char_t char
 #define string_str strstr
 #define string_cmp strcmp

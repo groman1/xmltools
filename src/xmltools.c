@@ -23,12 +23,12 @@ void fillXMLHeader(xml *header, xml *parent)
 
 char_t *trim(char_t *source, uint32_t len)
 {
-	while (*source==L' '||*source==L'\t'||*source==L'\n')
+	while (*source==S(' ')||*source==S('\t')||*source==S('\n'))
 	{
 		++source;
 		--len;
 	}
-	while ((source[len-1]==L' '||source[len-1]==L'\t'||source[len-1]==L'\n')&&len>0) --len;
+	while ((source[len-1]==S(' ')||source[len-1]==S('\t')||source[len-1]==S('\n'))&&len>0) --len;
 	char_t *dest = malloc(sizeof(char_t)*(len+1));
 	string_ncpy(dest, source, len);
 	dest[len] = 0;
@@ -49,17 +49,17 @@ xml *parseXML(char_t *str)
 	{
 		if (str[i]==' ' || str[i]=='\n' || str[i]=='\t') continue;
 
-		if (str+i == string_str(str+i, L"<!--")) // comments
-			i = string_str(str+i+4, L"-->")-str+4;
+		if (str+i == string_str(str+i, S("<!--"))) // comments
+			i = string_str(str+i+4, S("-->"))-str+4;
 
 		switch (state)
 		{
 			case TAG:
-				if (str[i]==L'<') // tag open
+				if (str[i]==S('<')) // tag open
 				{
-					if (str[i+1]==L'?') // pi, dont worry for now
+					if (str[i+1]==S('?')) // pi, dont worry for now
 					{
-						i = string_str(str+i, L"?>")-str+2;
+						i = string_str(str+i, S("?>"))-str+2;
 						break;
 					}
 					currPtr->tagArr = realloc(currPtr->tagArr, (++currPtr->tagQty)*sizeof(xmlTag));
@@ -68,7 +68,7 @@ xml *parseXML(char_t *str)
 					currTag.argsQty = 0;
 					currTag.isString = false;
 					++i;
-					uint32_t size = min3(string_chr(str+i, L' ')-1, string_chr(str+i, L'/')-1, string_chr(str+i, L'>')-1)+1-str-i; // done so that if not found the value is overflown and isn't counted an min
+					uint32_t size = min3(string_chr(str+i, S(' '))-1, string_chr(str+i, S('/'))-1, string_chr(str+i, S('>'))-1)+1-str-i; // done so that if not found the value is overflown and isn't counted an min
 					currTag.tagName = malloc(sizeof(char_t)*(size+1));
 					string_ncpy(currTag.tagName, str+i, size);
 					currTag.tagName[size] = 0;
@@ -82,14 +82,14 @@ xml *parseXML(char_t *str)
 				}
 				break;
 			case ARG:
-				if (str[i]==L'/')
+				if (str[i]==S('/'))
 				{
 					currTag.child = NULL;
 					++i;
 					state = VAL;
 					break;
 				}
-				else if (str[i]==L'>')
+				else if (str[i]==S('>'))
 				{
 					state = VAL;
 					currTag.child = malloc(sizeof(xml));
@@ -98,7 +98,7 @@ xml *parseXML(char_t *str)
 					break;
 				}
 				currTag.args = realloc(currTag.args, (++currTag.argsQty)*sizeof(xmlArg));
-				uint32_t lenSpace = string_chr(str+i, L' ')-str-i, lenEq = string_chr(str+i, L'=')-str-i;
+				uint32_t lenSpace = string_chr(str+i, S(' '))-str-i, lenEq = string_chr(str+i, S('='))-str-i;
 				
 				if (lenEq>lenSpace) // no value
 				{
@@ -114,8 +114,8 @@ xml *parseXML(char_t *str)
 					string_ncpy(currTag.args[currTag.argsQty-1].name, str+i, lenEq);
 					currTag.args[currTag.argsQty-1].name[lenEq] = 0;
 					i += lenEq+1;
-					if (str[i++]!=L'"') return (xml*)1;
-					lenSpace = string_chr(str+i, L'"')-str-i;
+					if (str[i++]!=S('"')) return (xml*)1;
+					lenSpace = string_chr(str+i, S('"'))-str-i;
 					currTag.args[currTag.argsQty-1].value = malloc(sizeof(char_t)*(lenSpace+1));
 					string_ncpy(currTag.args[currTag.argsQty-1].value, str+i, lenSpace);
 					currTag.args[currTag.argsQty-1].value[lenSpace] = 0;
@@ -123,12 +123,12 @@ xml *parseXML(char_t *str)
 				}
 				break;
 			case VAL:
-				if (str[i]==L'<')
+				if (str[i]==S('<'))
 				{
-					if (str[i+1]==L'/') // tag closing
+					if (str[i+1]==S('/')) // tag closing
 					{
 						++i;
-						uint32_t tagEnd = string_chr(str+i, L'>')-str-i-1;
+						uint32_t tagEnd = string_chr(str+i, S('>'))-str-i-1;
 						char_t *tagEndText = malloc(sizeof(char_t)*(tagEnd+1));
 						string_ncpy(tagEndText, str+i+1, tagEnd);
 						tagEndText[tagEnd] = 0;
@@ -149,7 +149,7 @@ xml *parseXML(char_t *str)
 					currTag.child = NULL;
 					currTag.args = NULL;
 					currTag.argsQty = 0;
-					uint32_t size = string_chr(str+i, L'<')-str-i;
+					uint32_t size = string_chr(str+i, S('<'))-str-i;
 					currTag.tagName = trim(str+i, size);
 					i += size-1;
 				}
@@ -211,7 +211,7 @@ void removeElement(xml *ptr, uint32_t index)
 
 xmlTag *findElement(xml *ptr, char_t* text)
 {
-	for (int i = 0; i<ptr->tagQty; ++i)
+	for (uint32_t i = 0; i<ptr->tagQty; ++i)
 		if (string_str(ptr->tagArr[i].tagName, text))
 			return &ptr->tagArr[i];
 	return NULL;
@@ -243,19 +243,19 @@ char_t *xmlToString(xml *ptr, bool format)
 			str = realloc(str, sizeof(char_t)*(length+(indent+1)*format+string_len(currPtr->tagArr[currTag].tagName)+4));
 			if (format)
 				for (uint32_t i = 0; i<indent; ++i, ++length)
-					str[length] = L'\t';
+					str[length] = S('\t');
 
-			str[length++] = L'<';
-			str[length++] = L'/';
+			str[length++] = S('<');
+			str[length++] = S('/');
 
 			for (uint32_t i = 0; currPtr->tagArr[currTag].tagName[i]; ++i)
 				str[length++] = currPtr->tagArr[currTag].tagName[i];
 
-			str[length++] = L'>';
+			str[length++] = S('>');
 
 
 			if (format)
-				str[length++] = L'\n';
+				str[length++] = S('\n');
 
 			++currTag;
 			continue;
@@ -264,10 +264,10 @@ char_t *xmlToString(xml *ptr, bool format)
 		str = realloc(str, sizeof(char_t)*(length+(indent)*format+string_len(currPtr->tagArr[currTag].tagName)+!currPtr->tagArr[currTag].isString+format));
 		if (format)
 			for (uint32_t i = 0; i<indent; ++i)
-				str[length++] = L'\t';
+				str[length++] = S('\t');
 
 		if (!currPtr->tagArr[currTag].isString)
-			str[length++] = L'<';
+			str[length++] = S('<');
 
 		for (uint32_t i = 0; currPtr->tagArr[currTag].tagName[i]; ++i)
 			str[length++] = currPtr->tagArr[currTag].tagName[i];
@@ -275,26 +275,26 @@ char_t *xmlToString(xml *ptr, bool format)
 		for (uint32_t i = 0; i<currPtr->tagArr[currTag].argsQty; ++i) // args, dont check for isString as it cant have args (if parsed properly ofc)
 		{
 			str = realloc(str, sizeof(char_t)*(length+string_len(currPtr->tagArr[currTag].args[i].name)+2));
-			str[length++] = L' ';
+			str[length++] = S(' ');
 			for (uint32_t t = 0; currPtr->tagArr[currTag].args[i].name[t]; ++t)
 				str[length++] = currPtr->tagArr[currTag].args[i].name[t];
 
 			if (currPtr->tagArr[currTag].args[i].value)
 			{
 				str = realloc(str, sizeof(char_t)*(length+string_len(currPtr->tagArr[currTag].args[i].value)+4));
-				str[length++] = L'=';
-				str[length++] = L'"';
+				str[length++] = S('=');
+				str[length++] = S('"');
 				for (uint32_t t = 0; currPtr->tagArr[currTag].args[i].value[t]; ++t)
 					str[length++] = currPtr->tagArr[currTag].args[i].value[t];
-				str[length++] = L'"';
+				str[length++] = S('"');
 			}
 		}
 
 		if (!currPtr->tagArr[currTag].isString)
 		{
 			str = realloc(str, sizeof(char_t)*(length+2+(currPtr->tagArr[currTag].child==0)));
-			if (!currPtr->tagArr[currTag].child) str[length++] = L'/';
-			str[length++] = L'>';
+			if (!currPtr->tagArr[currTag].child) str[length++] = S('/');
+			str[length++] = S('>');
 		}
 
 		if (currPtr->tagArr[currTag].child)
