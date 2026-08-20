@@ -1,19 +1,23 @@
 # XMLTools by groman1
-Lightweight C library for reading XML files
+Lightweight C library for reading and writing XML/HTML files
 
 # Documentation
 
-## struct xml:
+## wchar_t support
+Compiled with wchar support by default. 
+If it's not necessary and you wish to save some runtime memory, replace the value of *char_t* with *char* in src/xmltools.h.
+
+## xml:
 tagQty : quanitity of tags on the same level;\
 parent : the parent group of tags;\
-dataArr : the tags on the same level:
-- value : can be either string or struct xml, depending on the isNesting variable
+tagArr : the tags on the same level:
+- child : the xml (header) of the child element(s)
 - tagName : name of the tag
 - args : arguments of the tag:
-- - attr : the attribute of the argument
-- - value : the value of the attribute
-- argsCount : the quanitity of arguments ( 1 by default, increments only if there is more than one tag present )
-- isNesting : specifies whether the tag has another tag in it
+- - name : the name of the argument
+- - value : the value of the argument (can be NULL)
+- argsQty: the quanitity of arguments
+- isString : specifies whether the current element is a string (is so, the text is stored in tagName)
 
 ## Functions: 
 parseXML(char* string) : parses struct xml from string, returns xml*\
