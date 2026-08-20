@@ -9,9 +9,10 @@
 #define initEmptyXML() parseXML("")
 
 // you can change this to char if you don't need wchars
-#define char_t wchar_t
+#define WIDECHAR
 
-#if (char_t == wchar_t)
+#ifdef WIDECHAR
+#define char_t wchar_t
 #define string_str wcsstr
 #define string_cmp wcscmp
 #define string_cpy wcscpy
@@ -19,6 +20,7 @@
 #define string_len wcslen
 #define string_chr wcschr
 #else
+#define char_t char
 #define string_str strstr
 #define string_cmp strcmp
 #define string_cpy strcpy
