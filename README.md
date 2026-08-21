@@ -20,15 +20,11 @@ tagArr : the tags on the same level:
 - isString : specifies whether the current element is a string (is so, the text is stored in tagName)
 
 ## Functions: 
-parseXML(char* string) : parses struct xml from string, returns xml*\
-fillEmptyXML(xml *ptr) : allocates memory for the default xml*\
-freeXML(xml *xmlDocument) : frees all the allocated memory for an xml structure\
-freeXMLValue(xml *ptr, int index) : frees all memory from xml->dataArr[index]\
-xmlToString(xml *ptr) : creates a string from a struct xml*\
-copyElement(xml *ptr, xmlValue value, int index) : copies xmlValue to a specified index, shouldn't be used on its own\
-removeElement(xml *ptr, int index) : removes element from ptr.dataArr at index specified\
-insertElement(xml *ptr, xmlValue value, int index) : insert element at a specified position and shift element after it\
-appendElement(xml *ptr, xmlValue value) : appends an element to a ptr.dataArr\
-findElement(xml *ptr, char *textToFind) : finds an element with the tag name textToFind and returns its index\
-swapElements(xml *ptr, int firstElemId, int secondElemId) : swaps elements at specified positions\
-nestElement(xml *ptr, xml *newptr, int index) : sets newptr to ptr->dataArr[index].value.xmlVal
+parseXML(char_t \*string) : parses struct xml from string, returns xml\*\
+freeXML(xml \*xmlDocument) : frees all the allocated memory for an xml structure\
+xmlToString(xml \*ptr) : creates a string from a struct xml\*\
+removeElement(xml \*ptr, uint32_t index) : removes element from ptr.dataArr at index specified\
+insertElement(xml \*ptr, xmlValue value, uint32_t index) : insert element at a specified position and shift element after it\
+appendElement(xml \*ptr, xmlValue value) : appends an element to a ptr.dataArr\
+findElement(xml \*ptr, char \*textToFind) : finds an element with the tag name textToFind and returns its index\
+swapElements(xml \*ptr, int firstElemId, int secondElemId) : swaps elements at specified positions

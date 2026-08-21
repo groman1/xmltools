@@ -6,7 +6,7 @@
 
 #include "xmltools.h"
 
-#define min3(a, b, c) (((a)<(b)?(a):(b))<(c)?((a)<(b)?(a):(b)):(c))
+#define min(a, b) ((a)<(b)?(a):(b))
 
 typedef enum {
 	TAG,
@@ -35,6 +35,12 @@ char_t *trim(char_t *source, uint32_t len)
 	return dest;
 }
 
+bool string_curr(char_t *str, char_t *sub)
+{
+	while (*(sub++)==*(str++));
+	return *sub==0;
+}
+
 #define currTag (currPtr->tagArr[currPtr->tagQty-1])
 
 xml *parseXML(char_t *str)
@@ -45,12 +51,15 @@ xml *parseXML(char_t *str)
 
 	parseState state = TAG;
 
-	for (uint32_t i = 0; i<string_len(str); ++i)
+	uint32_t len = string_len(str);
+
+	for (uint32_t i = 0; i<len; ++i)
 	{
 		if (str[i]==' ' || str[i]=='\n' || str[i]=='\t') continue;
 
-		if (str+i == string_str(str+i, S("<!--"))) // comments
+		if (string_curr(str+i, S("<!--"))) // comments
 			i = string_str(str+i+4, S("-->"))-str+4;
+
 
 		switch (state)
 		{
@@ -68,7 +77,11 @@ xml *parseXML(char_t *str)
 					currTag.argsQty = 0;
 					currTag.isString = false;
 					++i;
-					uint32_t size = min3(string_chr(str+i, S(' '))-1, string_chr(str+i, S('/'))-1, string_chr(str+i, S('>'))-1)+1-str-i; // done so that if not found the value is overflown and isn't counted an min
+					uint32_t size = 0;
+					for (;str[i+size];++size)
+						if (str[i+size]==S(' ') || str[i+size]==S('\t') || str[i+size]==S('/') || str[i+size]==S('>'))
+							break;
+
 					currTag.tagName = malloc(sizeof(char_t)*(size+1));
 					string_ncpy(currTag.tagName, str+i, size);
 					currTag.tagName[size] = 0;
@@ -82,7 +95,7 @@ xml *parseXML(char_t *str)
 				}
 				break;
 			case ARG:
-				if (str[i]==S('/'))
+				if (str[i]==S('/') || (str[i]=='>'&&currTag.tagName[0]==S('!')))
 				{
 					currTag.child = NULL;
 					++i;
@@ -98,7 +111,7 @@ xml *parseXML(char_t *str)
 					break;
 				}
 				currTag.args = realloc(currTag.args, (++currTag.argsQty)*sizeof(xmlArg));
-				uint32_t lenSpace = string_chr(str+i, S(' '))-str-i, lenEq = string_chr(str+i, S('='))-str-i;
+				uint32_t lenSpace = min(string_chr(str+i, S(' '))-str-i, string_chr(str+i, S('>'))-str-i), lenEq = string_chr(str+i, S('='))-str-i;
 				
 				if (lenEq>lenSpace) // no value
 				{
@@ -106,7 +119,7 @@ xml *parseXML(char_t *str)
 					string_ncpy(currTag.args[currTag.argsQty-1].name, str+i, lenSpace);
 					currTag.args[currTag.argsQty-1].name[lenSpace] = 0;
 					currTag.args[currTag.argsQty-1].value = NULL;
-					i += lenSpace;
+					i += lenSpace-1;
 				}
 				else
 				{
@@ -114,8 +127,10 @@ xml *parseXML(char_t *str)
 					string_ncpy(currTag.args[currTag.argsQty-1].name, str+i, lenEq);
 					currTag.args[currTag.argsQty-1].name[lenEq] = 0;
 					i += lenEq+1;
-					if (str[i++]!=S('"')) return (xml*)1;
-					lenSpace = string_chr(str+i, S('"'))-str-i;
+					if (str[i]!=S('"')&&str[i]!=S('\''))
+						return NULL;
+					char_t ch = str[i++];
+					lenSpace = string_chr(str+i, ch)-str-i;
 					currTag.args[currTag.argsQty-1].value = malloc(sizeof(char_t)*(lenSpace+1));
 					string_ncpy(currTag.args[currTag.argsQty-1].value, str+i, lenSpace);
 					currTag.args[currTag.argsQty-1].value[lenSpace] = 0;
@@ -133,7 +148,8 @@ xml *parseXML(char_t *str)
 						string_ncpy(tagEndText, str+i+1, tagEnd);
 						tagEndText[tagEnd] = 0;
 						currPtr = currPtr->parent;
-						if (string_cmp(tagEndText, currTag.tagName)) return (xml*)1;
+						if (string_cmp(tagEndText, currTag.tagName))
+							return NULL;
 						i += tagEnd+1;
 						free(tagEndText);
 						break;
@@ -158,6 +174,8 @@ xml *parseXML(char_t *str)
 				break;
 		}
 	}
+	if (currPtr!=document)
+		return NULL; // some tags not closed
 	return document;
 }
 

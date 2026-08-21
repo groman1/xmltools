@@ -9,7 +9,7 @@
 #define initEmptyXML() parseXML("")
 
 // you can change this to char if you don't need wchars
-#define WIDECHAR
+// #define WIDECHAR
 
 #ifdef WIDECHAR
 #define char_t wchar_t

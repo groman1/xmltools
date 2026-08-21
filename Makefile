@@ -12,3 +12,8 @@ shared-nochecks:
 	rm xmltools.o
 install:
 	sudo mv xmltools.so /usr/lib/
+
+perftest:
+	cc tests/perftest.c src/xmltools.c -o perftest -Wall -Wextra -O2
+selftest:
+	cc tests/selftest.c src/xmltools.c -o selftest -Wall -Wextra -O2
