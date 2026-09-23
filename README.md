@@ -4,8 +4,7 @@ Lightweight C library for reading and writing XML/HTML files
 # Documentation
 
 ## wchar_t support
-Compiled with wchar support by default.  
-If it's not necessary and you wish to save some runtime memory, comment out the #define WIDECHAR in src/xmltools.h
+Enabled by defining WIDECHAR before the xmltools #include or in src/xmltools.h
 
 ## xml:
 tagQty : quanitity of tags on the same level;\

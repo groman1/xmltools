@@ -8,9 +8,6 @@
 #define appendElement(ptr, value) insertElement(ptr, value, ptr->tagQty)
 #define initEmptyXML() parseXML("")
 
-// you can change this to char if you don't need wchars
-// #define WIDECHAR
-
 #ifdef WIDECHAR
 #define char_t wchar_t
 #define S(s) L##s

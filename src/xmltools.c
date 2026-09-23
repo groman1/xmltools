@@ -21,6 +21,34 @@ void fillXMLHeader(xml *header, xml *parent)
 	header->tagArr = 0;
 }
 
+typedef struct {
+	uint32_t *ptr;
+	uint32_t len;
+} stack;
+
+static inline void st_fill(stack *st)
+{
+	memset(st, 0, sizeof(stack));
+}
+
+static void st_push(stack *st, int value)
+{
+	st->ptr = realloc(st->ptr, sizeof(uint32_t)*(++st->len));
+	st->ptr[st->len-1] = value;
+}
+
+static inline uint32_t st_pop(stack *st)
+{
+	return st->ptr[--st->len];
+}
+
+static inline void st_free(stack *st)
+{
+	free(st->ptr);
+	st->ptr = 0;
+	st->len = 0;
+}
+
 char_t *trim(char_t *source, uint32_t len)
 {
 	while (*source==S(' ')||*source==S('\t')||*source==S('\n'))
@@ -248,14 +276,14 @@ char_t *xmlToString(xml *ptr, bool format)
 	char_t *str = NULL;
 	xml *currPtr = ptr;
 	uint32_t currTag = 0, indent = 0, length = 0;
+	stack st;
+	st_fill(&st);
 
 	while (!(currPtr==ptr && currTag==currPtr->tagQty))
 	{
 		if (currTag == currPtr->tagQty) // reached the end of current level
 		{
-			for (currTag = 0; currTag<currPtr->parent->tagQty; ++currTag)
-				if (currPtr->parent->tagArr[currTag].child==currPtr)
-					break;
+			currTag = st_pop(&st);
 			--indent;
 			currPtr = currPtr->parent;
 			str = realloc(str, sizeof(char_t)*(length+(indent+1)*format+string_len(currPtr->tagArr[currTag].tagName)+4));
@@ -318,6 +346,7 @@ char_t *xmlToString(xml *ptr, bool format)
 		if (currPtr->tagArr[currTag].child)
 		{
 			currPtr = currPtr->tagArr[currTag].child;
+			st_push(&st, currTag);
 			++indent;
 			currTag = 0;
 		}
@@ -329,6 +358,7 @@ char_t *xmlToString(xml *ptr, bool format)
 
 	str = realloc(str, sizeof(char_t)*(length+1));
 	str[length] = 0;
+	st_free(&st);
 	return str;
 }
 

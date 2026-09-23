@@ -41,19 +41,20 @@ int main(int argc, char **argv)
 	clock_gettime(CLOCK_REALTIME, &start);
 
 	xml *doc = parseXML(str);
+
+	clock_gettime(CLOCK_REALTIME, &end);
+
 	if (!doc)
 	{
 		puts("Parse failed");
 		return 1;
 	}
-	
-	clock_gettime(CLOCK_REALTIME, &end);
 
 	free(str);
 
 	diff = timespecDiff(start, end);
 	double secElapsed = diff.tv_sec+diff.tv_nsec/1000000000.0;
-	printf("Parse took %.4lfs (%.3lf MB/s)\n", secElapsed, size/secElapsed/1000000);
+	printf("Parse took %.4lfs (%.3lf MB/s)\n", secElapsed, size/secElapsed/(1<<20));
 
 	clock_gettime(CLOCK_REALTIME, &start);
 
@@ -62,7 +63,7 @@ int main(int argc, char **argv)
 	clock_gettime(CLOCK_REALTIME, &end);
 
 	diff = timespecDiff(start, end);
-	printf("Convert took %ld.%lds\n", diff.tv_sec, diff.tv_nsec);
+	printf("Convert took %ld.%.9lds\n", diff.tv_sec, diff.tv_nsec);
 
 	free(str);
 
@@ -73,7 +74,7 @@ int main(int argc, char **argv)
 	clock_gettime(CLOCK_REALTIME, &end);
 
 	diff = timespecDiff(start, end);
-	printf("Free took %ld.%lds\n", diff.tv_sec, diff.tv_nsec);
+	printf("Free took %ld.%.9lds\n", diff.tv_sec, diff.tv_nsec);
 
 	return 0;
 }
